@@ -14,16 +14,16 @@ class Coordinates {
 
 
 const Action = {
-    MOVE: "move",
-    SWITCH: "switch",
-    SPEED: "speed"
+    MOVE: "MOVE",
+    SWITCH: "SWITCH",
+    SPEED: "SPEED"
 }
 
 
 const PacType = {
-    ROCK: "rock",
-    PAPER: "paper",
-    SCISSORS: "scissors"
+    ROCK: "ROCK",
+    PAPER: "PAPER",
+    SCISSORS: "SCISSORS"
 }
 
 class PacMan {
@@ -33,10 +33,11 @@ class PacMan {
     #action = Action.MOVE;
     #type;
 
-    constructor(id, position, destination) {
+    constructor(id, position, destination, type) {
         this.id = id;
         this.#position = position;
         this.#destination = destination;
+        this.#type = type;
     }
 
     setPosition(position) {
@@ -64,6 +65,16 @@ class PacMan {
     getAction() {
         return this.#action;
     }
+
+    getActionLine() {
+        if (this.#action === Action.MOVE) {
+            return `${this.getAction()} ${this.id} ${this.getDestinationX()} ${this.getDestinationY()}`;
+        }
+        else if (this.#action === Action.SWITCH) {
+            return `${this.getAction()} ${this.id} ${this.getType()}`;
+        }
+
+    }
     setType(type) {
         this.#type = type;
     }
@@ -72,7 +83,7 @@ class PacMan {
     }
 
     toString() {
-        return `PacId : ${this.id} - Position : ${this.#position} - Destination : ${this.#destination}`;
+        return `PacId : ${this.id} - Position : ${this.#position} - Destination : ${this.#destination} - Action : ${this.#action}`;
     }
 }
 
@@ -95,27 +106,12 @@ class Pellet {
     }
 }
 
-
-
 function computeDistance(positionA, positionB) {
-    if (verbose) {
-        console.error(`computeDistance(positionA, positionB)`);
-        console.error(`Position A : ${positionA}`);
-        console.error(`Position B : ${positionB}`);
-    }
+
     const diffX = Math.abs(positionA.x - positionB.x);
-    if (verbose) {
-        console.error(`diffX : ${diffX}`);
-    }
     const diffY = Math.abs(positionA.y - positionB.y);
-    if (verbose) {
-        console.error(`diffY : ${diffY}`);
-    }
-    const result = diffX + diffY;
-    if (verbose) {
-        console.error(result)
-    }
-    return result;
+
+    return diffX + diffY;
 }
 
 const PelletType = {
@@ -164,6 +160,7 @@ if (verbose) {
 let firstPass = true;
 
 let pacs = []
+let adversaries = [];
 
 // game loop
 while (true) {
@@ -194,13 +191,13 @@ while (true) {
         const speedTurnsLeft = parseInt(inputs[5]); // unused in wood leagues
         const abilityCooldown = parseInt(inputs[6]); // unused in wood leagues
 
-        let adversaries = [];
 
         if (mine) {
             if (firstPass) {
                 pacPosition = new Coordinates(x, y);
                 pacTarget = new Coordinates(0, 0);
-                const newPac = new PacMan(pacId, pacPosition, pacTarget);
+                const newPac = new PacMan(pacId, pacPosition, pacTarget, typeId);
+
                 pacs.push(newPac);
                 if (verbose) {
                     console.error(`In loop ; i = ${i}`);
@@ -211,15 +208,20 @@ while (true) {
                 if (verbose) {
                     console.error(`I'm updating positions`)
                 }
-                pacs.filter(pac => pac.id === pacId).map(pac => pac.setPosition(new Coordinates(x, y)));
+                pacs.filter(pac => pac.id === pacId).map(pac => {
+                    pac.setPosition(new Coordinates(x, y));
+                    pac.setType(typeId);
+                }
+                );
             }
         }
+        
         else { // managing other player's pacs
-            adversaries.filter(pac => pac.id === pacId).length > 0 ?
-                adversaries.filter(pac => pac.id === pacId).map(pac => pac.setPosition(new Coordinates(x, y))).map(pac => pac.setType(typeId))
-                : adversaries.push(new PacMan(pacId, new Coordinates(x, y), null, typeId));
+                
+        adversaries = [];
+        adversaries.push(new PacMan(pacId, new Coordinates(x, y), null, typeId));
 
-            console.error(`ADVERSARIES : ${adversaries.map(pac => pac)}`)
+        console.error(`ADVERSARIES : ${adversaries.map(pac => pac)}`);
         }
     }
 
@@ -281,7 +283,6 @@ while (true) {
 
 
 
-
     // For each Pacman : get which pellet is the closest and set the target accordingly
 
     // note : note optimal as another pacman might be closer
@@ -297,7 +298,7 @@ while (true) {
             for (j = 0; j < bigPellets.length; j++) {
 
                 let currentDistance = computeDistance(pacs[i].getPosition(), bigPellets[j].getPosition());
-                console.error(`distance between PAC ${pacs[i].id} and pellet ${bigPellets[j]} : ${currentDistance}`)
+                if (verbose) { console.error(`distance between PAC ${pacs[i].id} and pellet ${bigPellets[j]} : ${currentDistance}`); }
 
                 if (currentDistance < distance) {
                     distance = currentDistance;
@@ -305,28 +306,18 @@ while (true) {
                 }
             }
 
+            pacs[i].setAction(Action.MOVE);
             pacs[i].setDestination(bigPellets[betterPelletIndex].getPosition());
 
-            if (verbose) {
-                console.error(``);
-                console.error(`PAC : ${pacs[i]}`);
-                console.error(`Smallest distance = ${distance}`);
-                console.error(`Better target = ${bigPellets[betterPelletIndex]}`);
-                console.error(`Better target position = ${bigPellets[betterPelletIndex].getPosition()}`);
-                console.error(``);
-            }
             bigPelletsTarget.push(bigPellets.splice(betterPelletIndex, 1));
-            if (verbose) {
-                console.error(`BigPellets : ${bigPellets}`);
-                console.error(`BigPelletsTarget : ${bigPelletsTarget}`);
-                console.error(``);
-            }
-
 
         }
 
         // When every big pellet has been eaten
+        // Dumb algo so every pac gets at a different place of the map
         else if (pellets.length > i) {
+
+            pacs[i].setAction(Action.MOVE);
 
             switch (i) {
                 case 0:
@@ -349,8 +340,87 @@ while (true) {
         else {
             // Means no more pellets - Should not happen
             console.error("THIS SHOULD NOT HAPPEN");
+
+            pacs[i].setAction(Action.MOVE);
             pacs[i].setDestination(new Coordinates(0, 0));
         }
+
+        // ██╗    ██╗ █████╗ ██████╗ ███████╗ ██████╗ ███╗   ██╗███████╗
+        // ██║    ██║██╔══██╗██╔══██╗╚══███╔╝██╔═══██╗████╗  ██║██╔════╝
+        // ██║ █╗ ██║███████║██████╔╝  ███╔╝ ██║   ██║██╔██╗ ██║█████╗  
+        // ██║███╗██║██╔══██║██╔══██╗ ███╔╝  ██║   ██║██║╚██╗██║██╔══╝  
+        // ╚███╔███╔╝██║  ██║██║  ██║███████╗╚██████╔╝██║ ╚████║███████╗
+        //  ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═══╝╚══════╝
+
+
+        //DANGER ! There are some ennemies
+
+
+        if (adversaries.length > 0) {
+
+            for (i = 0; i < pacs.length; i++) {
+
+                let distanceToClosestEnnemy = 1000;
+
+                let closestEnnemyIndex = 0;
+
+                for (j = 0; j < adversaries.length; j++) {
+
+                    let currentDistance = computeDistance(pacs[i].getPosition(), adversaries[j].getPosition());
+
+                    if (verbose) {
+                        console.error(`distance between PAC ${pacs[i].id} and ennemy ${adversaries[j]} : ${currentDistance}`);
+                    }
+
+                    if (currentDistance < distanceToClosestEnnemy) {
+                        distanceToClosestEnnemy = currentDistance;
+                        closestEnnemyIndex = j;
+                    }
+                }
+
+                if (distanceToClosestEnnemy < 4) {
+                    console.error(`WE'RE ENTERING BATTLE MODE - ${pacs[i]}`);
+
+                    if (adversaries[closestEnnemyIndex].getType() === PacType.PAPER) {
+                        console.error(`CASE PAPER`);
+                        if (pacs[i] !== PacType.SCISSORS) {
+                            pacs[i].setType(PacType.SCISSORS);
+                            pacs[i].setAction(Action.SWITCH);
+                        }
+                    }
+                    else if (adversaries[closestEnnemyIndex].getType() === PacType.ROCK) {
+                        console.error(`CASE ROCK`);
+                        if (pacs[i] !== PacType.PAPER) {
+                            pacs[i].setType(PacType.PAPER);
+                            pacs[i].setAction(Action.SWITCH);
+                        }
+                    }
+
+                    else if (adversaries[closestEnnemyIndex].getType() === PacType.SCISSORS) {
+                        console.error(`CASE SCISSORS`);
+                        if (pacs[i] !== PacType.ROCK) {
+                            pacs[i].setType(PacType.ROCK);
+                            pacs[i].setAction(Action.SWITCH);
+                        }
+                    }
+
+                    else {
+                        console.error("NO CASE - WE SHOULD NOT BE HERE");
+                    }
+                    pacs[i].setDestination(adversaries[closestEnnemyIndex].getPosition())
+                    console.error(`WARRIOR PAC #${pacs[i].id} going to attack ennemy #${adversaries[closestEnnemyIndex].id} at ${pacs[i].getDestination()}`);
+                    console.error(`WARRIOR PAC #${pacs[i].id} is a ${pacs[i].getType()} - attacking a ${adversaries[closestEnnemyIndex].getType()}`);
+                }
+                else {
+                    pacs[i].setAction(Action.MOVE);
+                    console.error(`No battle for ${pacs[i]}`);
+                }
+            }
+        }
+        else {
+            console.error(`No more ennemies ? We should have won by now ???`)
+        }
+
     }
 
 
@@ -367,7 +437,7 @@ while (true) {
 
 
     const outputMessage = pacs.map(pac => {
-        return `${pac.getAction()} ${pac.id} ${pac.getDestinationX()} ${pac.getDestinationY()}`;
+        return `${pac.getActionLine()}`;
     }).join(" | ");
 
     // console.log('MOVE 0 15 10');     // MOVE <pacId> <x> <y>
