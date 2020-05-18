@@ -10,6 +10,15 @@ class Coordinates {
     toString() {
         return `[${this.x} - ${this.y}]`
     }
+
+    isEqual(coordinates) {
+        console.error(`Comparing ${coordinates} and ${this}`);
+        let returnValue = coordinates.x == this.x && coordinates.y == this.y;
+        console.error(`${coordinates.x} == ${this.x} ? --> ${coordinates.x == this.x} `);
+        console.error(`${coordinates.y} == ${this.y} ? --> ${coordinates.y == this.y} `);
+        console.error(`${returnValue} `);
+        return returnValue;
+    }
 }
 
 
@@ -29,25 +38,45 @@ const PacType = {
 class PacMan {
     #position = null;
     #destination = null;
+    #position_min_1 = null;
+    #position_min_2 = null;
     id = 0;
     #action = Action.MOVE;
     #type;
+    maybeDead = false;
 
     constructor(id, position, destination, type) {
         this.id = id;
         this.#position = position;
+        // Position min_1 and min_2 : fast hack to have previous positions and know if PAC is stuck
+        // Would be better with position history
+        this.#position_min_1 = new Coordinates(0, 0);
+        this.#position_min_2 = new Coordinates(0, 0);
         this.#destination = destination;
         this.#type = type;
     }
 
     setPosition(position) {
+        if (verbose) {
+            console.error(`Entering setPosition - Position = ${this.#position} - Previous Position = ${this.#position_min_1}`)
+        }
+        this.#position_min_2 = this.#position_min_1;
+        this.#position_min_1 = this.#position;
         this.#position = position;
     }
     getPosition() {
         return this.#position;
     }
-    setDestination(position) {
-        this.#destination = position;
+    setDestination(destination) {
+        //If PAC is stuck
+        console.error(`Entering Set Destination - Pos = ${this.#position} - Pos -1 = ${this.#position_min_1} - Pos -2 = ${this.#position_min_2}`)
+        if (this.#position.isEqual(this.#position_min_1) && this.#position.isEqual(this.#position_min_2)) {
+            this.#destination = new Coordinates(getRandomInt(0, width), getRandomInt(0, height));
+            console.error(`PAC #${this.id} is stuck, going to a random destination : ${this.#destination}`);
+        }
+        else {
+            this.#destination = destination;
+        }
     }
     getDestination() {
         return this.#destination;
@@ -112,6 +141,15 @@ function computeDistance(positionA, positionB) {
     const diffY = Math.abs(positionA.y - positionB.y);
 
     return diffX + diffY;
+}
+
+/**
+ * Returns a random number between min (inclusive) and max (exclusive)
+ */
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 const PelletType = {
@@ -179,6 +217,11 @@ while (true) {
     // ╚═╝     ╚═╝  ╚═╝ ╚═════╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
 
 
+    // reset lists, we start anew each time
+
+    adversaries = [];
+    pacs.map(pac => pac.maybeDead = true);
+
     for (let i = 0; i < visiblePacCount; i++) {
 
 
@@ -192,36 +235,37 @@ while (true) {
         const abilityCooldown = parseInt(inputs[6]); // unused in wood leagues
 
 
+
         if (mine) {
+
             if (firstPass) {
                 pacPosition = new Coordinates(x, y);
                 pacTarget = new Coordinates(0, 0);
                 const newPac = new PacMan(pacId, pacPosition, pacTarget, typeId);
 
                 pacs.push(newPac);
+
                 if (verbose) {
                     console.error(`In loop ; i = ${i}`);
                     console.error(`Last Pac in list : ${pacs[pacs.length - 1]}`);
                 }
             }
             else {
-                if (verbose) {
-                    console.error(`I'm updating positions`)
-                }
                 pacs.filter(pac => pac.id === pacId).map(pac => {
+                    console.error(`Updating PAC #${pac.id}`)
                     pac.setPosition(new Coordinates(x, y));
                     pac.setType(typeId);
+                    pac.maybeDead = false;
                 }
                 );
             }
         }
-        
-        else { // managing other player's pacs
-                
-        adversaries = [];
-        adversaries.push(new PacMan(pacId, new Coordinates(x, y), null, typeId));
 
-        console.error(`ADVERSARIES : ${adversaries.map(pac => pac)}`);
+        else { // managing other player's pacs
+
+            adversaries.push(new PacMan(pacId, new Coordinates(x, y), null, typeId));
+
+            console.error(`ADVERSARIES : ${adversaries.map(pac => pac)}`);
         }
     }
 
@@ -231,6 +275,9 @@ while (true) {
             console.error(`PAC : ${pacs[i]}`);
         }
     }
+
+    // We only keep alive PACS
+    pacs = pacs.filter(pac => pac.maybeDead === false);
 
     firstPass = false;
 
@@ -264,6 +311,7 @@ while (true) {
         else {
             // console.error(`Adding a classic pellet`)
             pellets.push(new Pellet(new Coordinates(x, y), PelletType.STD));
+            // console.error(`Pellets : ${pellets.length} - ${pellets}`)
         }
     }
     if (verbose) {
@@ -292,6 +340,7 @@ while (true) {
 
     for (i = 0; i < pacs.length; i++) {
         if (bigPellets.length > 0) { // Default action : try to grab the big pellets
+            console.error(`PAC #${pacs[i].id} is going for a BIG pellet`);
             let distance = 10000;
             let betterPelletIndex = 0;
 
@@ -315,7 +364,9 @@ while (true) {
 
         // When every big pellet has been eaten
         // Dumb algo so every pac gets at a different place of the map
-        else if (pellets.length > i) {
+        else if (pellets.length > 0) {
+
+            console.error(`No more BIG pellet for PAC #${pacs[i].id} - it's going for a Dumb algo...`);
 
             pacs[i].setAction(Action.MOVE);
 
@@ -339,10 +390,29 @@ while (true) {
         }
         else {
             // Means no more pellets - Should not happen
-            console.error("THIS SHOULD NOT HAPPEN");
+            console.error("Cannot see any pellet");
+
+            console.error(`No more BIG pellet for PAC #${pacs[i].id} - it's going for a DUMBER algo...`);
 
             pacs[i].setAction(Action.MOVE);
-            pacs[i].setDestination(new Coordinates(0, 0));
+
+            switch (i) {
+                case 0:
+                    pacs[i].setDestination(new Coordinates(0, 0));
+                    break;
+                case 1:
+                    pacs[i].setDestination(new Coordinates(12, 12));
+                    break;
+                case 2:
+                    pacs[i].setDestination(new Coordinates(20, 0));
+                    break;
+                case 3:
+                    pacs[i].setDestination(new Coordinates(0, 10));
+                    break;
+                case 4:
+                    pacs[i].setDestination(new Coordinates(20, 20));
+
+            }
         }
 
         // ██╗    ██╗ █████╗ ██████╗ ███████╗ ██████╗ ███╗   ██╗███████╗
@@ -358,67 +428,68 @@ while (true) {
 
         if (adversaries.length > 0) {
 
-            for (i = 0; i < pacs.length; i++) {
+            let distanceToClosestEnnemy = 1000;
 
-                let distanceToClosestEnnemy = 1000;
+            let closestEnnemyIndex = 0;
 
-                let closestEnnemyIndex = 0;
+            for (j = 0; j < adversaries.length; j++) {
 
-                for (j = 0; j < adversaries.length; j++) {
+                let currentDistance = computeDistance(pacs[i].getPosition(), adversaries[j].getPosition());
 
-                    let currentDistance = computeDistance(pacs[i].getPosition(), adversaries[j].getPosition());
-
-                    if (verbose) {
-                        console.error(`distance between PAC ${pacs[i].id} and ennemy ${adversaries[j]} : ${currentDistance}`);
-                    }
-
-                    if (currentDistance < distanceToClosestEnnemy) {
-                        distanceToClosestEnnemy = currentDistance;
-                        closestEnnemyIndex = j;
-                    }
+                if (verbose) {
+                    console.error(`distance between PAC ${pacs[i].id} and ennemy ${adversaries[j]} : ${currentDistance}`);
                 }
 
-                if (distanceToClosestEnnemy < 4) {
-                    console.error(`WE'RE ENTERING BATTLE MODE - ${pacs[i]}`);
-
-                    if (adversaries[closestEnnemyIndex].getType() === PacType.PAPER) {
-                        console.error(`CASE PAPER`);
-                        if (pacs[i] !== PacType.SCISSORS) {
-                            pacs[i].setType(PacType.SCISSORS);
-                            pacs[i].setAction(Action.SWITCH);
-                        }
-                    }
-                    else if (adversaries[closestEnnemyIndex].getType() === PacType.ROCK) {
-                        console.error(`CASE ROCK`);
-                        if (pacs[i] !== PacType.PAPER) {
-                            pacs[i].setType(PacType.PAPER);
-                            pacs[i].setAction(Action.SWITCH);
-                        }
-                    }
-
-                    else if (adversaries[closestEnnemyIndex].getType() === PacType.SCISSORS) {
-                        console.error(`CASE SCISSORS`);
-                        if (pacs[i] !== PacType.ROCK) {
-                            pacs[i].setType(PacType.ROCK);
-                            pacs[i].setAction(Action.SWITCH);
-                        }
-                    }
-
-                    else {
-                        console.error("NO CASE - WE SHOULD NOT BE HERE");
-                    }
-                    pacs[i].setDestination(adversaries[closestEnnemyIndex].getPosition())
-                    console.error(`WARRIOR PAC #${pacs[i].id} going to attack ennemy #${adversaries[closestEnnemyIndex].id} at ${pacs[i].getDestination()}`);
-                    console.error(`WARRIOR PAC #${pacs[i].id} is a ${pacs[i].getType()} - attacking a ${adversaries[closestEnnemyIndex].getType()}`);
-                }
-                else {
-                    pacs[i].setAction(Action.MOVE);
-                    console.error(`No battle for ${pacs[i]}`);
+                if (currentDistance < distanceToClosestEnnemy) {
+                    distanceToClosestEnnemy = currentDistance;
+                    closestEnnemyIndex = j;
                 }
             }
+
+            if (distanceToClosestEnnemy < 4) {
+                console.error(`WE'RE ENTERING BATTLE MODE - ${pacs[i]}`);
+
+                if (adversaries[closestEnnemyIndex].getType() === PacType.PAPER) {
+                    console.error(`CASE PAPER`);
+                    if (pacs[i] !== PacType.SCISSORS) {
+                        console.error(`Switching`);
+                        pacs[i].setType(PacType.SCISSORS);
+                        pacs[i].setAction(Action.SWITCH);
+                    }
+                }
+                else if (adversaries[closestEnnemyIndex].getType() === PacType.ROCK) {
+                    console.error(`CASE ROCK`);
+                    if (pacs[i] !== PacType.PAPER) {
+                        console.error(`Switching`);
+                        pacs[i].setType(PacType.PAPER);
+                        pacs[i].setAction(Action.SWITCH);
+                    }
+                }
+
+                else if (adversaries[closestEnnemyIndex].getType() === PacType.SCISSORS) {
+                    console.error(`CASE SCISSORS`);
+                    if (pacs[i] !== PacType.ROCK) {
+                        console.error(`Switching`);
+                        pacs[i].setType(PacType.ROCK);
+                        pacs[i].setAction(Action.SWITCH);
+                    }
+                }
+
+                else {
+                    console.error("NO CASE - WE SHOULD NOT BE HERE");
+                }
+                pacs[i].setDestination(adversaries[closestEnnemyIndex].getPosition())
+                console.error(`WARRIOR PAC #${pacs[i].id} going to attack ennemy #${adversaries[closestEnnemyIndex].id} at ${pacs[i].getDestination()}`);
+                console.error(`WARRIOR PAC #${pacs[i].id} is a ${pacs[i].getType()} - attacking a ${adversaries[closestEnnemyIndex].getType()}`);
+            }
+            else {
+                pacs[i].setAction(Action.MOVE);
+                console.error(`No battle for ${pacs[i]}`);
+            }
+
         }
         else {
-            console.error(`No more ennemies ? We should have won by now ???`)
+            console.error(`No visible ennemies`)
         }
 
     }
