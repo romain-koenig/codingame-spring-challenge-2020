@@ -45,7 +45,7 @@ const signDict = {
 const match = (player1, player2) => {
 
     // Same sign : the lowest number wins
-    if (player1.sign === player2.sign) {
+    if (player1.sign == player2.sign) {
         if (player1.num < player2.num) {
             return player1;
         }
@@ -75,6 +75,11 @@ class Player {
 
     toString() {
         return `Player #${this.number} // Sign : ${this.sign}`
+    }
+
+    printAdversariesNum () {
+        
+        return this.adversaries.map(player => player.number).join(" ");
     }
 }
 
@@ -114,5 +119,6 @@ while (players.length > 1) {
 // Write an answer using console.log()
 // To debug: console.error('Debug messages...');
 
-console.log('WHO IS THE WINNER?');
+console.log(players[0].number);
+console.log(players[0].printAdversariesNum());
 
