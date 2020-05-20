@@ -46,11 +46,15 @@ const match = (player1, player2) => {
 
     // Same sign : the lowest number wins
     if (player1.sign == player2.sign) {
-        if (player1.num < player2.num) {
+        console.error("SAME SIGN");
+        if (player1.number < player2.number) {
+            console.error(`Returning player #${player1.number} because smaller than #${player2.number}`)
             return player1;
         }
+        console.error(`Default behaviour Returning player #${player2.number} because smaller than #${player1.number}`)
         return player2;
     }
+    console.error("DIFFERENT SIGN");
     // Different sign, check which one is the strongest
 
     if (Signs.betterSign(player1.sign, player2.sign) === player1.sign) {
