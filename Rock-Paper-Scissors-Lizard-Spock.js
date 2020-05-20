@@ -1,6 +1,5 @@
 /**
- * Auto-generated code below aims at helping you parse
- * the standard input according to the problem statement.
+ * Signs defines which sign is stronger than another in order to determine who wins a match
  **/
 class Signs {
     static betterSign(sign1, sign2) {
@@ -19,6 +18,7 @@ class Signs {
 
         // Spock smashes Scissors
         // Spock vaporizes Rock
+
         if (
             (sign1 === signDict['R'] && (sign2 === signDict['L'] || sign2 === signDict['C'])) ||
             (sign1 === signDict['P'] && (sign2 === signDict['R'] || sign2 === signDict['S'])) ||
@@ -46,23 +46,18 @@ const match = (player1, player2) => {
 
     // Same sign : the lowest number wins
     if (player1.sign == player2.sign) {
-        console.error("SAME SIGN");
         if (player1.number < player2.number) {
-            console.error(`Returning player #${player1.number} because smaller than #${player2.number}`)
             return player1;
         }
-        console.error(`Default behaviour Returning player #${player2.number} because smaller than #${player1.number}`)
         return player2;
     }
-    console.error("DIFFERENT SIGN");
+
     // Different sign, check which one is the strongest
 
     if (Signs.betterSign(player1.sign, player2.sign) === player1.sign) {
         return player1;
     }
     return player2;
-
-
 }
 
 class Player {
@@ -99,16 +94,14 @@ for (let i = 0; i < N; i++) {
     const newPlayer = new Player(NUMPLAYER, SIGNPLAYER);
 
     players[i] = newPlayer;
-    console.error(players[i].toString());
-
 }
 
-console.error(`Winner of match between player ${players[0].toString()} and ${players[1].toString()} : ${match(players[0], players[1])} `)
+let winner = match(players[0], players[1]);
+console.error(`Winner of match between player ${players[0].toString()} and ${players[1].toString()} : Player #${winner.number} }`)
 
 while (players.length > 1) {
     console.error("Starting a ROUND");
     players.map(p => p.win = false);
-    console.error(players);
     for (let i = 0 ; i < players.length / 2 ; i++) {
         players[2*i].addAdversary(players[2*i + 1]);
         players[2*i+1].addAdversary(players[2*i]);
@@ -116,8 +109,6 @@ while (players.length > 1) {
         match(players[2*i], players[2*i + 1]).win = true;
     }
     players = players.filter(p => p.win === true);
-    console.error(players);
-    console.error(`-------------------------------------------`);
 }
 
 // Write an answer using console.log()
