@@ -39,7 +39,6 @@ const signDict = {
     C: "SCISSORS",
     L: "LIZARD",
     S: "SPOCK",
-    D: "DRAW",
 }
 
 const match = (player1, player2) => {
@@ -62,7 +61,7 @@ const match = (player1, player2) => {
 
 class Player {
     number = 0;
-    sign = "X";
+    sign = "";
     win = false;
     adversaries = new Array(0);
     constructor(num, sign) {
@@ -96,11 +95,8 @@ for (let i = 0; i < N; i++) {
     players[i] = newPlayer;
 }
 
-let winner = match(players[0], players[1]);
-console.error(`Winner of match between player ${players[0].toString()} and ${players[1].toString()} : Player #${winner.number} }`)
-
+//Starting a ROUND
 while (players.length > 1) {
-    console.error("Starting a ROUND");
     players.map(p => p.win = false);
     for (let i = 0 ; i < players.length / 2 ; i++) {
         players[2*i].addAdversary(players[2*i + 1]);
